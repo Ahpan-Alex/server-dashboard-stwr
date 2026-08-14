@@ -1,0 +1,21 @@
+{
+  "name": "server-dashboard-stwr",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @stwr/api",
+    "build": "npm run build -w @stwr/shared && npm run build -w @stwr/api",
+    "start": "npm run start -w @stwr/api",
+    "db:migrate": "npm run db:migrate -w @stwr/api",
+    "db:seed": "npm run db:seed -w @stwr/api",
+    "db:generate": "npm run db:generate -w @stwr/api",
+    "test": "npm run test -w @stwr/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

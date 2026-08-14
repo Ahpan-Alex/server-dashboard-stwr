@@ -1,0 +1,234 @@
+/** État métier vide (nouveaux tenants / reset). */
+export function emptyBusinessState() {
+  const MENTIONS =
+    "Document établi conformément à la réglementation fiscale malagasy. NIF et STAT obligatoires. En cas d'acompte, une facture d'acompte est émise. TVA exigible selon le régime applicable.";
+
+  const rubriques = {
+    devis: [
+      "entete_entreprise",
+      "logo",
+      "nif",
+      "stat",
+      "rcs",
+      "coordonnees_entreprise",
+      "client",
+      "client_nif",
+      "numero_date",
+      "lignes",
+      "totaux_ht_tva_ttc",
+      "net_a_payer",
+      "conditions_paiement",
+      "mentions_legales",
+      "signature_cachet",
+    ],
+    commande: [
+      "entete_entreprise",
+      "logo",
+      "nif",
+      "stat",
+      "rcs",
+      "coordonnees_entreprise",
+      "client",
+      "client_nif",
+      "numero_date",
+      "reference_devis",
+      "lignes",
+      "totaux_ht_tva_ttc",
+      "acomptes",
+      "net_a_payer",
+      "conditions_paiement",
+      "echeance",
+      "mentions_legales",
+      "signature_cachet",
+    ],
+    bon_de_livraison: [
+      "entete_entreprise",
+      "logo",
+      "nif",
+      "stat",
+      "rcs",
+      "coordonnees_entreprise",
+      "client",
+      "client_nif",
+      "numero_date",
+      "reference_devis",
+      "reference_commande",
+      "lignes",
+      "totaux_ht_tva_ttc",
+      "net_a_payer",
+      "conditions_paiement",
+      "mentions_legales",
+      "signature_cachet",
+    ],
+    facture: [
+      "entete_entreprise",
+      "logo",
+      "nif",
+      "stat",
+      "rcs",
+      "coordonnees_entreprise",
+      "rib",
+      "client",
+      "client_nif",
+      "numero_date",
+      "reference_devis",
+      "reference_commande",
+      "reference_bl",
+      "lignes",
+      "totaux_ht_tva_ttc",
+      "acomptes",
+      "net_a_payer",
+      "conditions_paiement",
+      "echeance",
+      "mentions_legales",
+      "signature_cachet",
+    ],
+  } as const;
+
+  const modelesDocuments = (
+    ["devis", "commande", "bon_de_livraison", "facture"] as const
+  ).map((type) => ({
+    id: `modele-${type}-defaut`,
+    nom: `Modèle ${type.replaceAll("_", " ")} (législation MG)`,
+    type,
+    rubriques: [...rubriques[type]],
+    mentionsLegales: MENTIONS,
+    piedDePage: "Merci de votre confiance",
+    actif: true,
+  }));
+
+  return {
+    pointDeVenteActifId: "tous" as const,
+    parametres: {
+      nomEntreprise: "",
+      formeJuridique: "SARL",
+      capital: 0,
+      devise: "Ar" as const,
+      nif: "",
+      stat: "",
+      rcs: "",
+      adresse: "",
+      ville: "",
+      telephone: "",
+      email: "",
+      rib: "",
+      banque: "",
+      tauxTVA: 20,
+      assujettiTVA: true,
+      regimeFiscal: "tva" as const,
+      seuilMargePalier1Percent: 25,
+      seuilMargePalier2Percent: 5,
+      conditionsPaiementDefaut:
+        "Paiement à 30 jours. Acompte de 30 % à la commande. Espèces, virement ou Mobile Money.",
+    },
+    modelesDocuments,
+    bilanInitial: {
+      date: new Date().toISOString(),
+      immobilisations: 0,
+      stocks: 0,
+      creancesClients: 0,
+      disponibilites: 0,
+      capital: 0,
+      dettesFournisseurs: 0,
+      dettesSociales: 0,
+      emprunts: 0,
+      resultatReporte: 0,
+    },
+    immobilisations: [] as unknown[],
+    clients: [] as unknown[],
+    fournisseurs: [] as unknown[],
+    devis: [] as unknown[],
+    commandes: [] as unknown[],
+    bonsDeLivraison: [] as unknown[],
+    factures: [] as unknown[],
+    acomptes: [] as unknown[],
+    pointsDeVente: [] as unknown[],
+    categoriesProduits: [
+      {
+        id: "cat-mer",
+        code: "MER",
+        libelle: "Produits de la mer",
+        ordre: 0,
+        actif: true,
+      },
+      {
+        id: "cat-poisson",
+        code: "POI",
+        libelle: "Poissons",
+        parentId: "cat-mer",
+        ordre: 1,
+        actif: true,
+      },
+      {
+        id: "cat-crustace",
+        code: "CRU",
+        libelle: "Crustacés",
+        parentId: "cat-mer",
+        ordre: 2,
+        actif: true,
+      },
+      {
+        id: "cat-coquillage",
+        code: "COQ",
+        libelle: "Coquillages",
+        parentId: "cat-mer",
+        ordre: 3,
+        actif: true,
+      },
+      {
+        id: "cat-autre",
+        code: "AUT",
+        libelle: "Autres",
+        ordre: 99,
+        actif: true,
+      },
+    ],
+    produits: [] as unknown[],
+    tarifsClients: [] as unknown[],
+    historiquesPrix: [] as unknown[],
+    journalAudit: [] as unknown[],
+    entrees: [] as unknown[],
+    ventes: [] as unknown[],
+    charges: [] as unknown[],
+    rapportsFinJournee: [] as unknown[],
+  };
+}
+
+export type BusinessPayload = ReturnType<typeof emptyBusinessState>;
+
+const STATE_KEYS = [
+  "parametres",
+  "modelesDocuments",
+  "bilanInitial",
+  "immobilisations",
+  "clients",
+  "fournisseurs",
+  "devis",
+  "commandes",
+  "bonsDeLivraison",
+  "factures",
+  "acomptes",
+  "pointsDeVente",
+  "categoriesProduits",
+  "produits",
+  "tarifsClients",
+  "historiquesPrix",
+  "journalAudit",
+  "entrees",
+  "ventes",
+  "charges",
+  "rapportsFinJournee",
+  "pointDeVenteActifId",
+] as const;
+
+/** Valide et normalise un payload métier (merge avec défauts). */
+export function normalizeBusinessPayload(raw: unknown): BusinessPayload {
+  const base = emptyBusinessState();
+  if (!raw || typeof raw !== "object") return base;
+  const src = raw as Record<string, unknown>;
+  const out = { ...base } as Record<string, unknown>;
+  for (const key of STATE_KEYS) {
+    if (src[key] !== undefined) out[key] = src[key];
+  }
+  return out as BusinessPayload;
+}

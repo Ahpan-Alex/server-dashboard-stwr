@@ -1,0 +1,51 @@
+# Compose pour Dokploy (OVH).
+# Dans Dokploy : type Compose, fichier = docker-compose.dokploy.yml
+# Coller les variables dans l'onglet Environment (écrites dans .env).
+# Assigner le domaine API au service `api` (ex. https://api.votre-domaine).
+# Ne pas exposer MySQL sur Internet.
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-stwr}
+      MYSQL_USER: ${MYSQL_USER:-stwr}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-stwr}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-stwr}
+      PORT: 3001
+      NODE_ENV: production
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-stwr_session}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-none}
+      EXPOSE_DEMO_RESET_TOKEN: ${EXPOSE_DEMO_RESET_TOKEN:-false}
+      RUN_SEED: ${RUN_SEED:-true}
+    expose:
+      - "3001"
+
+volumes:
+  mysql_data:

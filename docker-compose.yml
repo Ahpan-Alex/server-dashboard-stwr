@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-stwr}
+      MYSQL_USER: ${MYSQL_USER:-stwr}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-stwr}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-stwr}:${MYSQL_PASSWORD:-stwr}@mysql:3306/${MYSQL_DATABASE:-stwr}
+      PORT: 3001
+      NODE_ENV: production
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-stwr_session}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      EXPOSE_DEMO_RESET_TOKEN: ${EXPOSE_DEMO_RESET_TOKEN:-true}
+      RUN_SEED: ${RUN_SEED:-true}
+    ports:
+      - "${API_PORT:-3001}:3001"
+
+volumes:
+  mysql_data:
