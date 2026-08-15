@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const here = dirname(fileURLToPath(import.meta.url));
-loadDotenv({ path: resolve(here, "../.env") });
 loadDotenv({ path: resolve(here, "../../../.env") });
+loadDotenv({ path: resolve(here, "../.env") });
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),

@@ -19,6 +19,22 @@ export async function buildApp(options?: { logger?: boolean }) {
     trustProxy: true,
   });
 
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (_req, body, done) => {
+      if (!body) {
+        done(null, {});
+        return;
+      }
+      try {
+        done(null, JSON.parse(String(body)));
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   await app.register(helmet, {
     contentSecurityPolicy: false,
   });

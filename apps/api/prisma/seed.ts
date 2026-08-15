@@ -6,8 +6,8 @@ import argon2 from "argon2";
 import { emptyBusinessState } from "../src/lib/business-state.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-loadDotenv({ path: resolve(here, "../.env") });
 loadDotenv({ path: resolve(here, "../../../.env") });
+loadDotenv({ path: resolve(here, "../.env") });
 
 const prisma = new PrismaClient();
 
@@ -43,7 +43,7 @@ async function removeDemoUsers(keepEmail?: string) {
 
 async function ensureAdmin(tenantId: string) {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD;
+  const password = process.env.ADMIN_PASSWORD?.trim();
   const nom = process.env.ADMIN_NOM?.trim() || "Administrateur";
   if (!email || !password) {
     throw new Error(
