@@ -62,7 +62,9 @@ WEB_ORIGIN=https://dashboard.votre-domaine
 SESSION_COOKIE_NAME=stwr_session
 COOKIE_SECURE=true
 COOKIE_SAMESITE=none
-EXPOSE_DEMO_RESET_TOKEN=false
+ADMIN_EMAIL=ton-email@stwr.mg
+ADMIN_PASSWORD=un-mot-de-passe-fort
+ADMIN_NOM=Administrateur
 RUN_SEED=true
 ```
 
@@ -85,9 +87,9 @@ RUN_SEED=true
 
 1. Déployer l’API, vérifier `https://api.votre-domaine/health`
 2. Déployer le front avec l’URL API définitive
-3. Login démo : `admin@stwr.mg` / `Demo2026!STWR`
+3. Se connecter avec `ADMIN_EMAIL` / `ADMIN_PASSWORD`
 
-Le seed est idempotent (il ne vide plus les données métier au redémarrage). Passer `RUN_SEED=false` ensuite si vous ne voulez plus recréer les comptes démo.
+Le seed crée (ou met à jour) cet admin et **supprime les anciens comptes démo**. Passer `RUN_SEED=false` ensuite.
 
 ## Frontend (repo sibling)
 
@@ -101,16 +103,7 @@ npm run dev   # http://localhost:3000
 
 Le login / administration appellent l’API avec `credentials: "include"` (cookie session).
 
-## Comptes démo
-
-Mot de passe commun : `Demo2026!STWR`
-
-| Email | Rôle |
-|-------|------|
-| admin@stwr.mg | admin_entreprise |
-| comptable@stwr.mg | comptable |
-| caisse@stwr.mg | caissier |
-| lecture@stwr.mg | lecture_seule |
+Le premier compte se crée via `ADMIN_EMAIL` / `ADMIN_PASSWORD` au seed.
 
 ## Endpoints Phase 1
 
@@ -122,7 +115,7 @@ Mot de passe commun : `Demo2026!STWR`
 | GET | `/auth/me` | |
 | POST | `/auth/session/touch` | idle refresh |
 | POST | `/auth/password/change` | |
-| POST | `/auth/password/forgot` | `demoToken` en dev |
+| POST | `/auth/password/forgot` | |
 | POST | `/auth/password/reset` | |
 | GET/POST | `/users` | `users.gerer` |
 | PATCH | `/users/:id` | incl. reset MDP admin |
@@ -131,7 +124,7 @@ Mot de passe commun : `Demo2026!STWR`
 | GET/DELETE | `/admin/sessions` | |
 | GET | `/business` | état métier du tenant |
 | PUT | `/business` | sync état (écriture selon permissions) |
-| POST | `/business/reset` | reset empty/demo (`parametres.gerer`) |
+| POST | `/business/reset` | vide l'état métier (`parametres.gerer`) |
 
 ## Variables d’environnement
 
@@ -140,7 +133,7 @@ Voir [`.env.example`](.env.example) :
 - `DATABASE_URL`
 - `WEB_ORIGIN` (CORS strict, URL exacte du dashboard)
 - `SESSION_COOKIE_NAME`, `COOKIE_SECURE`, `COOKIE_SAMESITE`, `COOKIE_DOMAIN` (optionnel)
-- `EXPOSE_DEMO_RESET_TOKEN`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NOM` (seed)
 - `RUN_SEED` (container uniquement)
 
 ## Tests

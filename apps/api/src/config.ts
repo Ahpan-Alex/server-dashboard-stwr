@@ -22,15 +22,10 @@ const EnvSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
-  EXPOSE_DEMO_RESET_TOKEN: z
-    .string()
-    .optional()
-    .transform((v) => v !== "false" && v !== "0"),
 });
 
 export type Env = z.infer<typeof EnvSchema> & {
   COOKIE_SECURE: boolean;
-  EXPOSE_DEMO_RESET_TOKEN: boolean;
   COOKIE_DOMAIN?: string;
 };
 

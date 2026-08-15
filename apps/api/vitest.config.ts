@@ -13,7 +13,6 @@ export default defineConfig({
       SESSION_COOKIE_NAME: "stwr_session",
       COOKIE_SECURE: "false",
       COOKIE_SAMESITE: "lax",
-      EXPOSE_DEMO_RESET_TOKEN: "true",
       PORT: "3001",
     },
   },

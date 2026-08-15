@@ -10,7 +10,6 @@ loadDotenv({ path: resolve(here, "../.env") });
 loadDotenv({ path: resolve(here, "../../../.env") });
 
 const prisma = new PrismaClient();
-const DEMO_PASSWORD = "Demo2026!STWR";
 
 const ARGON_OPTS: argon2.Options = {
   type: argon2.argon2id,
@@ -19,35 +18,60 @@ const ARGON_OPTS: argon2.Options = {
   parallelism: 1,
 };
 
-async function upsertUser(input: {
-  tenantId: string;
-  email: string;
-  nom: string;
-  role: string;
-  pointDeVenteIds?: string[];
-}) {
-  const passwordHash = await argon2.hash(DEMO_PASSWORD, ARGON_OPTS);
+const DEMO_EMAILS = [
+  "admin@stwr.mg",
+  "comptable@stwr.mg",
+  "caisse@stwr.mg",
+  "lecture@stwr.mg",
+];
+
+async function removeDemoUsers(keepEmail?: string) {
+  const emails = DEMO_EMAILS.filter(
+    (e) => e !== keepEmail?.trim().toLowerCase(),
+  );
+  const demoUsers = await prisma.user.findMany({
+    where: { email: { in: emails } },
+    select: { id: true },
+  });
+  const ids = demoUsers.map((u) => u.id);
+  if (!ids.length) return;
+  await prisma.passwordResetToken.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.session.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.authAudit.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+}
+
+async function ensureAdmin(tenantId: string) {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  const nom = process.env.ADMIN_NOM?.trim() || "Administrateur";
+  if (!email || !password) {
+    throw new Error(
+      "ADMIN_EMAIL et ADMIN_PASSWORD sont requis pour le seed (plus de comptes démo).",
+    );
+  }
+
+  const passwordHash = await argon2.hash(password, ARGON_OPTS);
   const existing = await prisma.user.findFirst({
-    where: { tenantId: input.tenantId, email: input.email },
+    where: { tenantId, email },
   });
   if (existing) {
     return prisma.user.update({
       where: { id: existing.id },
       data: {
-        nom: input.nom,
-        role: input.role,
-        pointDeVenteIds: input.pointDeVenteIds ?? [],
+        nom,
+        role: "admin_entreprise",
         actif: true,
       },
     });
   }
   return prisma.user.create({
     data: {
-      tenantId: input.tenantId,
-      email: input.email,
-      nom: input.nom,
-      role: input.role,
-      pointDeVenteIds: input.pointDeVenteIds ?? [],
+      tenantId,
+      email,
+      nom,
+      role: "admin_entreprise",
+      pointDeVenteIds: [],
       passwordHash,
       passwordHistory: [passwordHash],
       actif: true,
@@ -61,54 +85,18 @@ async function main() {
     where: { slug: "stwr" },
     update: {
       nom: "STWR Poissonnerie",
-      nif: "5000123456",
       actif: true,
     },
     create: {
       slug: "stwr",
       nom: "STWR Poissonnerie",
-      nif: "5000123456",
       actif: true,
     },
   });
 
-  const other = await prisma.tenant.upsert({
-    where: { slug: "autre" },
-    update: { nom: "Autre Entreprise", actif: true },
-    create: {
-      slug: "autre",
-      nom: "Autre Entreprise",
-      actif: true,
-    },
-  });
+  await removeDemoUsers(process.env.ADMIN_EMAIL);
+  await ensureAdmin(tenant.id);
 
-  await upsertUser({
-    tenantId: tenant.id,
-    email: "admin@stwr.mg",
-    nom: "Admin STWR",
-    role: "admin_entreprise",
-  });
-  await upsertUser({
-    tenantId: tenant.id,
-    email: "comptable@stwr.mg",
-    nom: "Comptable STWR",
-    role: "comptable",
-  });
-  await upsertUser({
-    tenantId: tenant.id,
-    email: "caisse@stwr.mg",
-    nom: "Caissier Marché",
-    role: "caissier",
-    pointDeVenteIds: ["pdv-marche"],
-  });
-  await upsertUser({
-    tenantId: tenant.id,
-    email: "lecture@stwr.mg",
-    nom: "Consultation direction",
-    role: "lecture_seule",
-  });
-
-  // État métier vide uniquement à la création — ne jamais écraser la prod au boot.
   const empty = emptyBusinessState();
   const existingStwr = await prisma.businessState.findUnique({
     where: { tenantId: tenant.id },
@@ -123,20 +111,21 @@ async function main() {
     });
   }
 
-  const existingOther = await prisma.businessState.findUnique({
-    where: { tenantId: other.id },
-  });
-  if (!existingOther) {
-    await prisma.businessState.create({
-      data: {
-        tenantId: other.id,
-        revision: 1,
-        data: empty,
-      },
+  const other = await prisma.tenant.findUnique({ where: { slug: "autre" } });
+  if (other) {
+    await prisma.passwordResetToken.deleteMany({
+      where: { user: { tenantId: other.id } },
     });
+    await prisma.session.deleteMany({ where: { tenantId: other.id } });
+    await prisma.authAudit.deleteMany({ where: { tenantId: other.id } });
+    await prisma.businessState.deleteMany({ where: { tenantId: other.id } });
+    await prisma.user.deleteMany({ where: { tenantId: other.id } });
+    await prisma.tenant.delete({ where: { id: other.id } });
   }
 
-  console.log("Seed OK — tenant stwr + 4 users + business state VIDE (Demo2026!STWR)");
+  console.log(
+    `Seed OK — tenant stwr + admin ${process.env.ADMIN_EMAIL?.trim().toLowerCase()} (comptes démo supprimés)`,
+  );
 }
 
 main()

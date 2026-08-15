@@ -282,7 +282,7 @@ export async function authRoutes(app: FastifyInstance) {
       where: { email, actif: true },
     });
 
-    const response: { ok: true; demoToken?: string } = { ok: true };
+    const response: { ok: true } = { ok: true };
 
     if (!user) {
       // Neutre — pas d'audit tenant fiable
@@ -290,7 +290,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const raw = generateOpaqueToken();
-    const token = await prisma.passwordResetToken.create({
+    await prisma.passwordResetToken.create({
       data: {
         userId: user.id,
         tokenHash: hashToken(raw),
@@ -307,9 +307,6 @@ export async function authRoutes(app: FastifyInstance) {
       ipHint: clientIp(request),
     });
 
-    if (env().EXPOSE_DEMO_RESET_TOKEN) {
-      response.demoToken = `${token.id}.${raw}`;
-    }
     return response;
   });
 

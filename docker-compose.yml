@@ -33,8 +33,10 @@ services:
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-stwr_session}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
-      EXPOSE_DEMO_RESET_TOKEN: ${EXPOSE_DEMO_RESET_TOKEN:-true}
       RUN_SEED: ${RUN_SEED:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NOM: ${ADMIN_NOM:-Administrateur}
     ports:
       - "${API_PORT:-3001}:3001"
 

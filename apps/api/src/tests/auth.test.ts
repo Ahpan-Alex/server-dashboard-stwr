@@ -6,7 +6,7 @@ import { buildApp } from "../app.js";
 import { loadEnv } from "../config.js";
 
 const prisma = new PrismaClient();
-const DEMO = "Demo2026!STWR";
+const TEST_PASSWORD = "TestPass2026!STWR";
 
 function cookieFrom(res: { headers: Record<string, unknown> }) {
   const set = res.headers["set-cookie"];
@@ -29,7 +29,6 @@ describe("auth + tenant isolation", () => {
       SESSION_COOKIE_NAME: "stwr_session",
       COOKIE_SECURE: "false",
       COOKIE_SAMESITE: "lax",
-      EXPOSE_DEMO_RESET_TOKEN: "true",
       PORT: "3001",
     });
 
@@ -61,7 +60,7 @@ describe("auth + tenant isolation", () => {
     tenantAId = tA.id;
     tenantBId = tB.id;
 
-    const hash = await argon2.hash(DEMO, { type: argon2.argon2id });
+    const hash = await argon2.hash(TEST_PASSWORD, { type: argon2.argon2id });
     await prisma.user.createMany({
       data: [
         {
@@ -107,7 +106,7 @@ describe("auth + tenant isolation", () => {
       method: "POST",
       url: "/auth/login",
       headers: { origin: "http://localhost:3000" },
-      payload: { email: "admin@a.test", password: DEMO },
+      payload: { email: "admin@a.test", password: TEST_PASSWORD },
     });
     expect(login.statusCode).toBe(200);
     const cookie = cookieFrom(login);
@@ -130,7 +129,7 @@ describe("auth + tenant isolation", () => {
       method: "POST",
       url: "/auth/login",
       headers: { origin: "http://localhost:3000" },
-      payload: { email: "admin@a.test", password: DEMO },
+      payload: { email: "admin@a.test", password: TEST_PASSWORD },
     });
     const cookie = cookieFrom(login);
     const users = await app.inject({
@@ -150,7 +149,7 @@ describe("auth + tenant isolation", () => {
       method: "POST",
       url: "/auth/login",
       headers: { origin: "http://localhost:3000" },
-      payload: { email: "caisse@a.test", password: DEMO },
+      payload: { email: "caisse@a.test", password: TEST_PASSWORD },
     });
     const cookie = cookieFrom(login);
     const res = await app.inject({

@@ -99,40 +99,12 @@ export async function businessRoutes(app: FastifyInstance) {
     };
   });
 
-  /** Remet l'état démo (admin) ou vide. */
+  /** Remet l'état métier à vide (admin). */
   app.post("/business/reset", async (request, reply) => {
     const auth = await requirePermission(request, reply, "parametres.gerer");
     if (!auth) return;
 
-    const body = (request.body ?? {}) as { mode?: "empty" | "demo" };
-    const mode = body.mode === "demo" ? "demo" : "empty";
-
-    let payload = emptyBusinessState();
-    if (mode === "demo") {
-      const { readFileSync } = await import("node:fs");
-      const { resolve, dirname } = await import("node:path");
-      const { fileURLToPath } = await import("node:url");
-      try {
-        const here = dirname(fileURLToPath(import.meta.url));
-        // dist/routes → ../../prisma or src/routes → ../../prisma
-        const candidates = [
-          resolve(here, "../../prisma/demo-business-state.json"),
-          resolve(here, "../../../prisma/demo-business-state.json"),
-        ];
-        let raw: string | null = null;
-        for (const p of candidates) {
-          try {
-            raw = readFileSync(p, "utf8");
-            break;
-          } catch {
-            /* try next */
-          }
-        }
-        if (raw) payload = normalizeBusinessPayload(JSON.parse(raw));
-      } catch {
-        payload = emptyBusinessState();
-      }
-    }
+    const payload = emptyBusinessState();
 
     const updated = await prisma.businessState.upsert({
       where: { tenantId: auth.tenant.id },
