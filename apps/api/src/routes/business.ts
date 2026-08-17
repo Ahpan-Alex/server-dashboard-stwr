@@ -1,12 +1,23 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
-import { roleHasPermission, type Permission, type RoleId } from "@stwr/shared";
+import {
+  ResetBusinessBodySchema,
+  roleHasPermission,
+  type Permission,
+  type RoleId,
+} from "@stwr/shared";
 import { prisma } from "../db.js";
+import { writeAudit } from "../lib/audit.js";
 import {
   emptyBusinessState,
   normalizeBusinessPayload,
 } from "../lib/business-state.js";
-import { requireAuth, requirePermission } from "../lib/session.js";
+import { verifyPassword } from "../lib/password.js";
+import {
+  clientIp,
+  requireAuth,
+  requirePermission,
+} from "../lib/session.js";
 
 const WRITE_PERMISSIONS: Permission[] = [
   "parametres.gerer",
@@ -99,30 +110,71 @@ export async function businessRoutes(app: FastifyInstance) {
     };
   });
 
-  /** Remet l'état métier à vide (admin). */
-  app.post("/business/reset", async (request, reply) => {
-    const auth = await requirePermission(request, reply, "parametres.gerer");
-    if (!auth) return;
+  /** Remet l'état métier à vide (admin) — mot de passe du compte requis. */
+  app.post(
+    "/business/reset",
+    {
+      config: {
+        rateLimit: {
+          max: 8,
+          timeWindow: "15 minutes",
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = await requirePermission(request, reply, "parametres.gerer");
+      if (!auth) return;
 
-    const payload = emptyBusinessState();
+      const parsed = ResetBusinessBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Mot de passe requis." });
+      }
 
-    const updated = await prisma.businessState.upsert({
-      where: { tenantId: auth.tenant.id },
-      create: {
+      const ok = await verifyPassword(
+        parsed.data.password,
+        auth.user.passwordHash,
+      );
+      if (!ok) {
+        await writeAudit({
+          tenantId: auth.tenant.id,
+          userId: auth.user.id,
+          email: auth.user.email,
+          action: "login_fail",
+          detail: "Reset données — mot de passe incorrect",
+          ipHint: clientIp(request),
+        });
+        return reply.code(401).send({ error: "Mot de passe incorrect." });
+      }
+
+      const payload = emptyBusinessState();
+
+      const updated = await prisma.businessState.upsert({
+        where: { tenantId: auth.tenant.id },
+        create: {
+          tenantId: auth.tenant.id,
+          revision: 1,
+          data: asJson(payload),
+        },
+        update: {
+          data: asJson(payload),
+          revision: { increment: 1 },
+        },
+      });
+
+      await writeAudit({
         tenantId: auth.tenant.id,
-        revision: 1,
-        data: asJson(payload),
-      },
-      update: {
-        data: asJson(payload),
-        revision: { increment: 1 },
-      },
-    });
+        userId: auth.user.id,
+        email: auth.user.email,
+        action: "business_reset",
+        detail: "Reset données métier",
+        ipHint: clientIp(request),
+      });
 
-    return {
-      revision: updated.revision,
-      updatedAt: updated.updatedAt.toISOString(),
-      data: normalizeBusinessPayload(updated.data),
-    };
-  });
+      return {
+        revision: updated.revision,
+        updatedAt: updated.updatedAt.toISOString(),
+        data: normalizeBusinessPayload(updated.data),
+      };
+    },
+  );
 }

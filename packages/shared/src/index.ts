@@ -188,6 +188,7 @@ export const AuthAuditActionSchema = z.enum([
   "user_update",
   "user_deactivate",
   "session_revoke",
+  "business_reset",
 ]);
 
 export type AuthAuditAction = z.infer<typeof AuthAuditActionSchema>;
@@ -210,6 +211,10 @@ export const ForgotPasswordBodySchema = z.object({
 export const ResetPasswordBodySchema = z.object({
   token: z.string().min(1).max(2048),
   newPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+});
+
+export const ResetBusinessBodySchema = z.object({
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 
 export const CreateUserBodySchema = z.object({
