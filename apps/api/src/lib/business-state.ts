@@ -86,6 +86,8 @@ export function emptyBusinessState() {
     ],
   } as const;
 
+  const preferencesModeles: Record<string, unknown> = {};
+
   const modelesDocuments = (
     ["devis", "commande", "bon_de_livraison", "facture"] as const
   ).map((type) => ({
@@ -123,6 +125,7 @@ export function emptyBusinessState() {
         "Paiement à 30 jours. Acompte de 30 % à la commande. Espèces, virement ou Mobile Money.",
     },
     modelesDocuments,
+    preferencesModeles,
     bilanInitial: {
       date: new Date().toISOString(),
       immobilisations: 0,
@@ -134,8 +137,10 @@ export function emptyBusinessState() {
       dettesSociales: 0,
       emprunts: 0,
       resultatReporte: 0,
+      compteCourantAssocie: 0,
     },
     immobilisations: [] as unknown[],
+    mouvementsCompteCourant: [] as unknown[],
     clients: [] as unknown[],
     fournisseurs: [] as unknown[],
     devis: [] as unknown[],
@@ -192,6 +197,8 @@ export function emptyBusinessState() {
     ventes: [] as unknown[],
     charges: [] as unknown[],
     rapportsFinJournee: [] as unknown[],
+    inventaires: [] as unknown[],
+    journalActivites: [] as unknown[],
   };
 }
 
@@ -200,8 +207,10 @@ export type BusinessPayload = ReturnType<typeof emptyBusinessState>;
 const STATE_KEYS = [
   "parametres",
   "modelesDocuments",
+  "preferencesModeles",
   "bilanInitial",
   "immobilisations",
+  "mouvementsCompteCourant",
   "clients",
   "fournisseurs",
   "devis",
@@ -219,6 +228,8 @@ const STATE_KEYS = [
   "ventes",
   "charges",
   "rapportsFinJournee",
+  "inventaires",
+  "journalActivites",
   "pointDeVenteActifId",
 ] as const;
 
