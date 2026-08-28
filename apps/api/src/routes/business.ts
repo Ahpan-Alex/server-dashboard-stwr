@@ -82,6 +82,13 @@ export async function businessRoutes(app: FastifyInstance) {
 
     const data = normalizeBusinessPayload(body.data);
     const current = await getOrCreateState(auth.tenant.id);
+    const currentData = normalizeBusinessPayload(current.data);
+
+    if (
+      !roleHasPermission(auth.user.role as RoleId, "navigation.identite")
+    ) {
+      data.identiteNavigation = currentData.identiteNavigation;
+    }
 
     if (
       typeof body.expectedRevision === "number" &&

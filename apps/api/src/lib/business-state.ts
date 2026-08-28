@@ -124,6 +124,7 @@ export function emptyBusinessState() {
       conditionsPaiementDefaut:
         "Paiement à 30 jours. Acompte de 30 % à la commande. Espèces, virement ou Mobile Money.",
     },
+    identiteNavigation: { nom: "" },
     modelesDocuments,
     preferencesModeles,
     bilanInitial: {
@@ -148,6 +149,7 @@ export function emptyBusinessState() {
     bonsDeLivraison: [] as unknown[],
     factures: [] as unknown[],
     acomptes: [] as unknown[],
+    transformations: [] as unknown[],
     pointsDeVente: [] as unknown[],
     categoriesProduits: [
       {
@@ -194,6 +196,7 @@ export function emptyBusinessState() {
     historiquesPrix: [] as unknown[],
     journalAudit: [] as unknown[],
     entrees: [] as unknown[],
+    achats: [] as unknown[],
     ventes: [] as unknown[],
     charges: [] as unknown[],
     rapportsFinJournee: [] as unknown[],
@@ -206,6 +209,7 @@ export type BusinessPayload = ReturnType<typeof emptyBusinessState>;
 
 const STATE_KEYS = [
   "parametres",
+  "identiteNavigation",
   "modelesDocuments",
   "preferencesModeles",
   "bilanInitial",
@@ -218,6 +222,7 @@ const STATE_KEYS = [
   "bonsDeLivraison",
   "factures",
   "acomptes",
+  "transformations",
   "pointsDeVente",
   "categoriesProduits",
   "produits",
@@ -225,6 +230,7 @@ const STATE_KEYS = [
   "historiquesPrix",
   "journalAudit",
   "entrees",
+  "achats",
   "ventes",
   "charges",
   "rapportsFinJournee",
