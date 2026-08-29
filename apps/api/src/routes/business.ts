@@ -38,6 +38,25 @@ function asJson(data: unknown): Prisma.InputJsonValue {
   return data as Prisma.InputJsonValue;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+/** Ne remplace que la tranche de l'utilisateur courant — les autres restent intactes. */
+function fusionnerPrefsAffichage(
+  current: unknown,
+  incoming: unknown,
+  userId: string,
+) {
+  const cur = asRecord(current) ?? {};
+  const inc = asRecord(incoming) ?? {};
+  return {
+    ...cur,
+    [userId]: inc[userId] ?? cur[userId] ?? {},
+  };
+}
+
 async function getOrCreateState(tenantId: string) {
   const existing = await prisma.businessState.findUnique({
     where: { tenantId },
@@ -90,6 +109,22 @@ export async function businessRoutes(app: FastifyInstance) {
       data.identiteNavigation = currentData.identiteNavigation;
     }
 
+    if (!roleHasPermission(auth.user.role as RoleId, "parametres.gerer")) {
+      data.parametresAlertes = currentData.parametresAlertes;
+    }
+
+    data.preferencesAffichage = fusionnerPrefsAffichage(
+      currentData.preferencesAffichage,
+      data.preferencesAffichage,
+      auth.user.id,
+    );
+
+    data.alertesSuivi = fusionnerPrefsAffichage(
+      currentData.alertesSuivi,
+      data.alertesSuivi,
+      auth.user.id,
+    );
+
     if (
       typeof body.expectedRevision === "number" &&
       body.expectedRevision !== current.revision
@@ -117,7 +152,116 @@ export async function businessRoutes(app: FastifyInstance) {
     };
   });
 
-  /** Remet l'état métier à vide (admin) — mot de passe du compte requis. */
+  /** Préférences d'affichage du compte courant — tout utilisateur authentifié. */
+  app.put("/business/preferences-affichage", async (request, reply) => {
+    const auth = await requireAuth(request, reply);
+    if (!auth) return;
+
+    const body = request.body as { prefs?: unknown };
+    if (!body || typeof body.prefs !== "object" || body.prefs === null) {
+      return reply.code(400).send({ error: "Préférences manquantes." });
+    }
+
+    const current = await getOrCreateState(auth.tenant.id);
+    const currentData = normalizeBusinessPayload(current.data);
+    const incoming = {
+      preferencesAffichage: {
+        ...(asRecord(currentData.preferencesAffichage) ?? {}),
+        [auth.user.id]: body.prefs,
+      },
+    };
+    currentData.preferencesAffichage = fusionnerPrefsAffichage(
+      currentData.preferencesAffichage,
+      incoming.preferencesAffichage,
+      auth.user.id,
+    );
+
+    const updated = await prisma.businessState.update({
+      where: { tenantId: auth.tenant.id },
+      data: {
+        data: asJson(currentData),
+        revision: { increment: 1 },
+      },
+    });
+
+    return {
+      revision: updated.revision,
+      updatedAt: updated.updatedAt.toISOString(),
+      data: normalizeBusinessPayload(updated.data),
+    };
+  });
+
+  /** Configuration des alertes — administrateur uniquement. */
+  app.put("/business/parametres-alertes", async (request, reply) => {
+    const auth = await requirePermission(request, reply, "parametres.gerer");
+    if (!auth) return;
+
+    const body = request.body as { parametresAlertes?: unknown };
+    if (
+      !body ||
+      typeof body.parametresAlertes !== "object" ||
+      body.parametresAlertes === null
+    ) {
+      return reply.code(400).send({ error: "Paramètres d'alertes manquants." });
+    }
+
+    const current = await getOrCreateState(auth.tenant.id);
+    const currentData = normalizeBusinessPayload(current.data);
+    currentData.parametresAlertes = body.parametresAlertes;
+
+    const updated = await prisma.businessState.update({
+      where: { tenantId: auth.tenant.id },
+      data: {
+        data: asJson(currentData),
+        revision: { increment: 1 },
+      },
+    });
+
+    return {
+      revision: updated.revision,
+      updatedAt: updated.updatedAt.toISOString(),
+      data: normalizeBusinessPayload(updated.data),
+    };
+  });
+
+  /** Lu / traité des alertes — tout utilisateur authentifié (sa propre tranche). */
+  app.put("/business/alertes-suivi", async (request, reply) => {
+    const auth = await requireAuth(request, reply);
+    if (!auth) return;
+
+    const body = request.body as { suivi?: unknown };
+    if (!body || typeof body.suivi !== "object" || body.suivi === null) {
+      return reply.code(400).send({ error: "Suivi d'alertes manquant." });
+    }
+
+    const current = await getOrCreateState(auth.tenant.id);
+    const currentData = normalizeBusinessPayload(current.data);
+    const incoming = {
+      alertesSuivi: {
+        ...(asRecord(currentData.alertesSuivi) ?? {}),
+        [auth.user.id]: body.suivi,
+      },
+    };
+    currentData.alertesSuivi = fusionnerPrefsAffichage(
+      currentData.alertesSuivi,
+      incoming.alertesSuivi,
+      auth.user.id,
+    );
+
+    const updated = await prisma.businessState.update({
+      where: { tenantId: auth.tenant.id },
+      data: {
+        data: asJson(currentData),
+        revision: { increment: 1 },
+      },
+    });
+
+    return {
+      revision: updated.revision,
+      updatedAt: updated.updatedAt.toISOString(),
+      data: normalizeBusinessPayload(updated.data),
+    };
+  });
   app.post(
     "/business/reset",
     {
