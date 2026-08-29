@@ -11,6 +11,7 @@ import { writeAudit } from "../lib/audit.js";
 import {
   emptyBusinessState,
   normalizeBusinessPayload,
+  normaliserParametresAlertes,
 } from "../lib/business-state.js";
 import { verifyPassword } from "../lib/password.js";
 import {
@@ -207,7 +208,9 @@ export async function businessRoutes(app: FastifyInstance) {
 
     const current = await getOrCreateState(auth.tenant.id);
     const currentData = normalizeBusinessPayload(current.data);
-    currentData.parametresAlertes = body.parametresAlertes;
+    currentData.parametresAlertes = normaliserParametresAlertes(
+      body.parametresAlertes,
+    );
 
     const updated = await prisma.businessState.update({
       where: { tenantId: auth.tenant.id },

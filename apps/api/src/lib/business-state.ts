@@ -1,3 +1,90 @@
+const PARAMETRES_ALERTES_DEFAUT = {
+  achatEcheanceApproche: { actif: true, delaiJours: 7 },
+  achatEcheanceDepassee: { actif: true },
+  achatLivraisonPartielle: { actif: true, delaiJours: 7 },
+  venteEcheanceApproche: { actif: true, delaiJours: 7 },
+  venteImpayee: { actif: true },
+  ventePartielleSansMouvement: { actif: true, delaiJours: 14 },
+  stockReappro: { actif: true },
+  stockRupture: { actif: true },
+  stockSurstock: { actif: true },
+  stockPeremption: { actif: true, delaiJours: 3 },
+};
+
+export type ParametresAlertes = typeof PARAMETRES_ALERTES_DEFAUT;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function fusionnerRegleAlerte<T extends { actif: boolean; delaiJours?: number }>(
+  defaut: T,
+  raw: unknown,
+): T {
+  const src = asRecord(raw);
+  if (!src) return { ...defaut };
+  const next: T = { ...defaut };
+  if (typeof src.actif === "boolean") next.actif = src.actif;
+  if (
+    "delaiJours" in defaut &&
+    typeof src.delaiJours === "number" &&
+    Number.isFinite(src.delaiJours) &&
+    src.delaiJours >= 0
+  ) {
+    (next as { actif: boolean; delaiJours?: number }).delaiJours =
+      Math.floor(src.delaiJours);
+  }
+  return next;
+}
+
+/** Fusionne un payload partiel avec les délais / activations par défaut. */
+export function normaliserParametresAlertes(raw: unknown): ParametresAlertes {
+  const src = asRecord(raw) ?? {};
+  return {
+    achatEcheanceApproche: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.achatEcheanceApproche,
+      src.achatEcheanceApproche,
+    ),
+    achatEcheanceDepassee: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.achatEcheanceDepassee,
+      src.achatEcheanceDepassee,
+    ),
+    achatLivraisonPartielle: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.achatLivraisonPartielle,
+      src.achatLivraisonPartielle,
+    ),
+    venteEcheanceApproche: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.venteEcheanceApproche,
+      src.venteEcheanceApproche,
+    ),
+    venteImpayee: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.venteImpayee,
+      src.venteImpayee,
+    ),
+    ventePartielleSansMouvement: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.ventePartielleSansMouvement,
+      src.ventePartielleSansMouvement,
+    ),
+    stockReappro: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.stockReappro,
+      src.stockReappro,
+    ),
+    stockRupture: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.stockRupture,
+      src.stockRupture,
+    ),
+    stockSurstock: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.stockSurstock,
+      src.stockSurstock,
+    ),
+    stockPeremption: fusionnerRegleAlerte(
+      PARAMETRES_ALERTES_DEFAUT.stockPeremption,
+      src.stockPeremption,
+    ),
+  };
+}
+
 /** État métier vide (nouveaux tenants / reset). */
 export function emptyBusinessState() {
   const MENTIONS =
@@ -128,18 +215,7 @@ export function emptyBusinessState() {
     modelesDocuments,
     preferencesModeles,
     preferencesAffichage: {},
-    parametresAlertes: {
-      achatEcheanceApproche: { actif: true, delaiJours: 7 },
-      achatEcheanceDepassee: { actif: true },
-      achatLivraisonPartielle: { actif: true, delaiJours: 7 },
-      venteEcheanceApproche: { actif: true, delaiJours: 7 },
-      venteImpayee: { actif: true },
-      ventePartielleSansMouvement: { actif: true, delaiJours: 14 },
-      stockReappro: { actif: true },
-      stockRupture: { actif: true },
-      stockSurstock: { actif: true },
-      stockPeremption: { actif: true, delaiJours: 3 },
-    },
+    parametresAlertes: { ...PARAMETRES_ALERTES_DEFAUT },
     alertesSuivi: {},
     bilanInitial: {
       date: new Date().toISOString(),
@@ -265,5 +341,6 @@ export function normalizeBusinessPayload(raw: unknown): BusinessPayload {
   for (const key of STATE_KEYS) {
     if (src[key] !== undefined) out[key] = src[key];
   }
+  out.parametresAlertes = normaliserParametresAlertes(out.parametresAlertes);
   return out as BusinessPayload;
 }
