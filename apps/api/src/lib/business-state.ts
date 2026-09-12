@@ -234,6 +234,7 @@ export function emptyBusinessState() {
     mouvementsCompteCourant: [] as unknown[],
     clients: [] as unknown[],
     fournisseurs: [] as unknown[],
+    tiers: [] as unknown[],
     devis: [] as unknown[],
     commandes: [] as unknown[],
     bonsDeLivraison: [] as unknown[],
@@ -287,11 +288,14 @@ export function emptyBusinessState() {
     journalAudit: [] as unknown[],
     entrees: [] as unknown[],
     achats: [] as unknown[],
+    transfertsStock: [] as unknown[],
     ventes: [] as unknown[],
     charges: [] as unknown[],
     rapportsFinJournee: [] as unknown[],
     inventaires: [] as unknown[],
     journalActivites: [] as unknown[],
+    comptesComptables: [] as unknown[],
+    ecrituresComptables: [] as unknown[],
   };
 }
 
@@ -310,6 +314,7 @@ const STATE_KEYS = [
   "mouvementsCompteCourant",
   "clients",
   "fournisseurs",
+  "tiers",
   "devis",
   "commandes",
   "bonsDeLivraison",
@@ -324,11 +329,14 @@ const STATE_KEYS = [
   "journalAudit",
   "entrees",
   "achats",
+  "transfertsStock",
   "ventes",
   "charges",
   "rapportsFinJournee",
   "inventaires",
   "journalActivites",
+  "comptesComptables",
+  "ecrituresComptables",
   "pointDeVenteActifId",
 ] as const;
 
