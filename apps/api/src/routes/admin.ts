@@ -26,8 +26,15 @@ import {
 
 export async function adminRoutes(app: FastifyInstance) {
   app.get("/users", async (request, reply) => {
-    const auth = await requirePermission(request, reply, "users.gerer");
+    const auth = await requireAuth(request, reply);
     if (!auth) return;
+    const role = normalizeRole(auth.user.role);
+    if (
+      !roleHasPermission(role, "users.gerer") &&
+      !roleHasPermission(role, "missions.gerer")
+    ) {
+      return reply.code(403).send({ error: "Permission refusée." });
+    }
     const users = await prisma.user.findMany({
       where: { tenantId: auth.tenant.id },
       orderBy: { createdAt: "desc" },

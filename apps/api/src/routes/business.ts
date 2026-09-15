@@ -29,6 +29,7 @@ const WRITE_PERMISSIONS: Permission[] = [
   "factures.creer",
   "factures.modifier",
   "factures.encaisser",
+  "missions.gerer",
 ];
 
 function canWriteBusiness(role: RoleId) {
