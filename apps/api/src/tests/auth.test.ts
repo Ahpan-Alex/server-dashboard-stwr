@@ -166,4 +166,41 @@ describe("auth + tenant isolation", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("un utilisateur peut cumuler vendeur et caissier", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      headers: { origin: "http://localhost:3000" },
+      payload: { email: "admin@a.test", password: TEST_PASSWORD },
+    });
+    const cookie = cookieFrom(login);
+    const created = await app.inject({
+      method: "POST",
+      url: "/users",
+      headers: { cookie, origin: "http://localhost:3000" },
+      payload: {
+        email: "poly@a.test",
+        nom: "Polyvalent",
+        roles: ["vendeur", "caissier"],
+        password: "MotDePasseValide99!",
+        pointDeVenteIds: [],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const body = created.json();
+    expect(body.user.roles).toEqual(expect.arrayContaining(["vendeur", "caissier"]));
+
+    const polyLogin = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      headers: { origin: "http://localhost:3000" },
+      payload: { email: "poly@a.test", password: "MotDePasseValide99!" },
+    });
+    expect(polyLogin.statusCode).toBe(200);
+    const perms = polyLogin.json().permissions as string[];
+    expect(perms).toContain("commercial.gerer");
+    expect(perms).toContain("factures.encaisser");
+    expect(perms).not.toContain("users.gerer");
+  });
 });

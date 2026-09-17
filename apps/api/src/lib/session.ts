@@ -3,9 +3,13 @@ import {
   ROLE_PERMISSIONS,
   SESSION_IDLE_MS,
   SESSION_MAX_MS,
+  estAdministrateur,
+  permissionsForRoles,
+  primaryRole,
+  rolesFromStored,
   type Permission,
   type RoleId,
-  roleHasPermission,
+  userHasPermission,
 } from "@stwr/shared";
 import { env } from "../config.js";
 import { prisma } from "../db.js";
@@ -18,6 +22,7 @@ export type PublicUser = {
   email: string;
   nom: string;
   role: RoleId;
+  roles: RoleId[];
   pointDeVenteIds: string[];
   actif: boolean;
   mfaRequired: boolean;
@@ -45,12 +50,14 @@ export function toPublicUser(user: User): PublicUser {
   const pdv = Array.isArray(user.pointDeVenteIds)
     ? (user.pointDeVenteIds as string[])
     : [];
+  const roles = rolesFromStored(user.role, user.roles);
   return {
     id: user.id,
     tenantId: user.tenantId,
     email: user.email,
     nom: user.nom,
-    role: normalizeRole(user.role),
+    role: primaryRole(roles),
+    roles,
     pointDeVenteIds: pdv,
     actif: user.actif,
     mfaRequired: user.mfaRequired,
@@ -63,12 +70,22 @@ export function toPublicUser(user: User): PublicUser {
 
 export function normalizeRole(role: string): RoleId {
   if (role === "admin") return "admin_entreprise";
-  return role as RoleId;
+  if (role === "commercial") return "vendeur";
+  return (role as RoleId);
 }
 
 export function permissionsForRole(role: RoleId | string): Permission[] {
   return ROLE_PERMISSIONS[normalizeRole(role)] ?? [];
 }
+
+export function permissionsForUser(user: {
+  role: string;
+  roles?: unknown;
+}): Permission[] {
+  return permissionsForRoles(rolesFromStored(user.role, user.roles));
+}
+
+export { estAdministrateur, userHasPermission };
 
 export function setSessionCookie(reply: FastifyReply, rawToken: string) {
   const e = env();
@@ -163,7 +180,7 @@ export async function requirePermission(
 ): Promise<AuthContext | null> {
   const auth = await requireAuth(request, reply);
   if (!auth) return null;
-  if (!roleHasPermission(normalizeRole(auth.user.role), permission)) {
+  if (!userHasPermission(auth.user, permission)) {
     reply.code(403).send({ error: "Permission refusée." });
     return null;
   }

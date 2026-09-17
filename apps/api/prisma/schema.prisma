@@ -44,6 +44,8 @@ model User {
   email              String    @db.VarChar(255)
   nom                String    @db.VarChar(200)
   role               String    @db.VarChar(64)
+  /** Rôles cumulés (acheteur, caissier, facturier, vendeur, …). Vide = dérivé de `role`. */
+  roles              Json      @default("[]")
   pointDeVenteIds    Json      @default("[]") @map("point_de_vente_ids")
   passwordHash       String    @map("password_hash") @db.VarChar(255)
   passwordHistory    Json      @default("[]") @map("password_history")

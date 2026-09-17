@@ -4,12 +4,16 @@ import {
   PERMISSION_LABELS,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
-  RoleIdSchema,
   UpdateUserBodySchema,
+  estAdministrateur,
+  libelleRoles,
+  primaryRole,
+  rolesFromStored,
+  userHasPermission,
   type RoleId,
-  roleHasPermission,
 } from "@stwr/shared";
 import { prisma } from "../db.js";
+import type { Prisma } from "@prisma/client";
 import { writeAudit } from "../lib/audit.js";
 import {
   assertPasswordPolicy,
@@ -18,7 +22,6 @@ import {
 } from "../lib/password.js";
 import {
   clientIp,
-  normalizeRole,
   requireAuth,
   requirePermission,
   toPublicUser,
@@ -28,10 +31,9 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get("/users", async (request, reply) => {
     const auth = await requireAuth(request, reply);
     if (!auth) return;
-    const role = normalizeRole(auth.user.role);
     if (
-      !roleHasPermission(role, "users.gerer") &&
-      !roleHasPermission(role, "missions.gerer")
+      !userHasPermission(auth.user, "users.gerer") &&
+      !userHasPermission(auth.user, "missions.gerer")
     ) {
       return reply.code(403).send({ error: "Permission refusée." });
     }
@@ -61,13 +63,20 @@ export async function adminRoutes(app: FastifyInstance) {
       return reply.code(409).send({ error: "Cet e-mail existe déjà." });
     }
 
+    const roles = rolesFromStored(
+      data.role ?? data.roles![0],
+      data.roles ?? (data.role ? [data.role] : []),
+    );
+    const role = primaryRole(roles);
+
     const passwordHash = await hashPassword(data.password);
     const user = await prisma.user.create({
       data: {
         tenantId: auth.tenant.id,
         email,
         nom: data.nom.trim(),
-        role: data.role,
+        role,
+        roles: roles as Prisma.InputJsonValue,
         pointDeVenteIds: data.pointDeVenteIds,
         passwordHash,
         passwordHistory: [passwordHash],
@@ -81,7 +90,7 @@ export async function adminRoutes(app: FastifyInstance) {
       userId: auth.user.id,
       email: auth.user.email,
       action: "user_create",
-      detail: `${email} · ${ROLE_LABELS[data.role]}`,
+      detail: `${email} · ${libelleRoles(roles)}`,
       ipHint: clientIp(request),
     });
 
@@ -105,11 +114,17 @@ export async function adminRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data;
-    if (data.role) {
-      const roleCheck = RoleIdSchema.safeParse(data.role);
-      if (!roleCheck.success) {
-        return reply.code(400).send({ error: "Rôle invalide." });
-      }
+    if (data.password && !estAdministrateur(auth.user)) {
+      return reply.code(403).send({
+        error: "Seul l'administrateur peut générer un mot de passe pour un autre utilisateur.",
+      });
+    }
+
+    let nextRoles: RoleId[] | undefined;
+    if (data.roles?.length) {
+      nextRoles = rolesFromStored(data.roles[0], data.roles);
+    } else if (data.role) {
+      nextRoles = rolesFromStored(data.role, [data.role]);
     }
 
     let passwordHash: string | undefined;
@@ -131,7 +146,9 @@ export async function adminRoutes(app: FastifyInstance) {
       where: { id: target.id },
       data: {
         ...(data.nom !== undefined ? { nom: data.nom.trim() } : {}),
-        ...(data.role !== undefined ? { role: data.role } : {}),
+        ...(nextRoles
+          ? { role: primaryRole(nextRoles), roles: nextRoles as Prisma.InputJsonValue }
+          : {}),
         ...(data.pointDeVenteIds !== undefined
           ? { pointDeVenteIds: data.pointDeVenteIds }
           : {}),
@@ -177,10 +194,9 @@ export async function adminRoutes(app: FastifyInstance) {
     const auth = await requireAuth(request, reply);
     if (!auth) return;
     // Lecture matrice : users.gerer OU lecture admin
-    const role = auth.user.role as RoleId;
     if (
-      !roleHasPermission(role, "users.gerer") &&
-      !roleHasPermission(role, "audit.lire")
+      !userHasPermission(auth.user, "users.gerer") &&
+      !userHasPermission(auth.user, "audit.lire")
     ) {
       return reply.code(403).send({ error: "Permission refusée." });
     }
@@ -236,11 +252,10 @@ export async function adminRoutes(app: FastifyInstance) {
   app.delete("/admin/audit", async (request, reply) => {
     const auth = await requirePermission(request, reply, "audit.lire");
     if (!auth) return;
-    const role = normalizeRole(auth.user.role);
     const canPurge =
-      roleHasPermission(role, "parametres.gerer") ||
-      roleHasPermission(role, "securite.gerer") ||
-      roleHasPermission(role, "users.gerer");
+      userHasPermission(auth.user, "parametres.gerer") ||
+      userHasPermission(auth.user, "securite.gerer") ||
+      userHasPermission(auth.user, "users.gerer");
     if (!canPurge) {
       return reply.code(403).send({ error: "Permission refusée." });
     }
@@ -273,10 +288,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get("/admin/sessions", async (request, reply) => {
     const auth = await requireAuth(request, reply);
     if (!auth) return;
-    const canManage = roleHasPermission(
-      auth.user.role as RoleId,
-      "securite.gerer",
-    );
+    const canManage = userHasPermission(auth.user, "securite.gerer");
     const sessions = await prisma.session.findMany({
       where: {
         tenantId: auth.tenant.id,
@@ -315,10 +327,7 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!session) {
       return reply.code(404).send({ error: "Session introuvable." });
     }
-    const canManage = roleHasPermission(
-      auth.user.role as RoleId,
-      "securite.gerer",
-    );
+    const canManage = userHasPermission(auth.user, "securite.gerer");
     if (session.userId !== auth.user.id && !canManage) {
       return reply.code(403).send({ error: "Permission refusée." });
     }

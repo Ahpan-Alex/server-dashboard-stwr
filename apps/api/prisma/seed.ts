@@ -61,6 +61,7 @@ async function ensureAdmin(tenantId: string) {
       data: {
         nom,
         role: "admin_entreprise",
+        roles: ["admin_entreprise"],
         actif: true,
       },
     });
@@ -71,6 +72,7 @@ async function ensureAdmin(tenantId: string) {
       email,
       nom,
       role: "admin_entreprise",
+      roles: ["admin_entreprise"],
       pointDeVenteIds: [],
       passwordHash,
       passwordHistory: [passwordHash],

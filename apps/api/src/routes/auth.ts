@@ -8,7 +8,6 @@ import {
   RESET_TOKEN_TTL_MS,
   ResetPasswordBodySchema,
   UpdateProfilePhotoBodySchema,
-  type RoleId,
 } from "@stwr/shared";
 import { env } from "../config.js";
 import { prisma } from "../db.js";
@@ -27,7 +26,7 @@ import {
   clientIp,
   createSession,
   loadAuthFromRequest,
-  permissionsForRole,
+  permissionsForUser,
   requireAuth,
   setSessionCookie,
   toPublicUser,
@@ -128,7 +127,6 @@ export async function authRoutes(app: FastifyInstance) {
         ipHint: ip,
       });
 
-      const role = user.role as RoleId;
       return {
         user: toPublicUser(user),
         tenant: {
@@ -138,7 +136,7 @@ export async function authRoutes(app: FastifyInstance) {
           nif: user.tenant.nif,
           actif: user.tenant.actif,
         },
-        permissions: permissionsForRole(role),
+        permissions: permissionsForUser(user),
         session: {
           id: session.id,
           createdAt: session.createdAt.toISOString(),
@@ -172,7 +170,6 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/auth/me", async (request, reply) => {
     const auth = await requireAuth(request, reply);
     if (!auth) return;
-    const role = auth.user.role as RoleId;
     return {
       user: toPublicUser(auth.user),
       tenant: {
@@ -182,7 +179,7 @@ export async function authRoutes(app: FastifyInstance) {
         nif: auth.tenant.nif,
         actif: auth.tenant.actif,
       },
-      permissions: permissionsForRole(role),
+      permissions: permissionsForUser(auth.user),
       session: {
         id: auth.session.id,
         createdAt: auth.session.createdAt.toISOString(),

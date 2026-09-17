@@ -2,9 +2,8 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 import {
   ResetBusinessBodySchema,
-  roleHasPermission,
+  userHasPermission,
   type Permission,
-  type RoleId,
 } from "@stwr/shared";
 import { prisma } from "../db.js";
 import { writeAudit } from "../lib/audit.js";
@@ -25,6 +24,7 @@ const WRITE_PERMISSIONS: Permission[] = [
   "produits.gerer",
   "clients.gerer",
   "commercial.gerer",
+  "achats.gerer",
   "charges.gerer",
   "factures.creer",
   "factures.modifier",
@@ -32,8 +32,8 @@ const WRITE_PERMISSIONS: Permission[] = [
   "missions.gerer",
 ];
 
-function canWriteBusiness(role: RoleId) {
-  return WRITE_PERMISSIONS.some((p) => roleHasPermission(role, p));
+function canWriteBusiness(user: { role: string; roles?: unknown }) {
+  return WRITE_PERMISSIONS.some((p) => userHasPermission(user, p));
 }
 
 function asJson(data: unknown): Prisma.InputJsonValue {
@@ -89,7 +89,7 @@ export async function businessRoutes(app: FastifyInstance) {
   app.put("/business", async (request, reply) => {
     const auth = await requireAuth(request, reply);
     if (!auth) return;
-    if (!canWriteBusiness(auth.user.role as RoleId)) {
+    if (!canWriteBusiness(auth.user)) {
       return reply.code(403).send({ error: "Permission insuffisante." });
     }
 
@@ -106,12 +106,12 @@ export async function businessRoutes(app: FastifyInstance) {
     const currentData = normalizeBusinessPayload(current.data);
 
     if (
-      !roleHasPermission(auth.user.role as RoleId, "navigation.identite")
+      !userHasPermission(auth.user, "navigation.identite")
     ) {
       data.identiteNavigation = currentData.identiteNavigation;
     }
 
-    if (!roleHasPermission(auth.user.role as RoleId, "parametres.gerer")) {
+    if (!userHasPermission(auth.user, "parametres.gerer")) {
       data.parametresAlertes = currentData.parametresAlertes;
     }
 
