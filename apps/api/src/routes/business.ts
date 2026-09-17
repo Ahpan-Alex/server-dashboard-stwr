@@ -25,7 +25,6 @@ const WRITE_PERMISSIONS: Permission[] = [
   "clients.gerer",
   "commercial.gerer",
   "achats.gerer",
-  "charges.gerer",
   "factures.creer",
   "factures.modifier",
   "factures.encaisser",

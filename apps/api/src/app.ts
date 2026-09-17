@@ -15,7 +15,7 @@ export async function buildApp(options?: { logger?: boolean }) {
 
   const app = Fastify({
     logger: options?.logger ?? e.NODE_ENV !== "test",
-    bodyLimit: 5 * 1024 * 1024,
+    bodyLimit: 20 * 1024 * 1024,
     trustProxy: true,
   });
 
