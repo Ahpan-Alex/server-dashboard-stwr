@@ -6,7 +6,7 @@ async function main() {
   const app = await buildApp({ logger: true });
   const port = env().PORT;
   await app.listen({ port, host: "0.0.0.0" });
-  console.log(`STWR API listening on :${port}`);
+  console.log(`Négoo API listening on :${port}`);
 }
 
 main().catch((err) => {

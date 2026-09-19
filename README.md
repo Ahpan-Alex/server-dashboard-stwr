@@ -1,4 +1,4 @@
-# STWR Poissonnerie — API (Phase 1 Auth)
+# Négoo — API
 
 Backend Node.js + MySQL pour le dashboard Next.js [`dashdoard-stwr`](../dashdoard-stwr).  
 Phase 1 : **tenants, users, sessions, audit, auth cookie**.  
