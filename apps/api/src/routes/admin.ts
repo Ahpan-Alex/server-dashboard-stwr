@@ -15,6 +15,7 @@ import {
 import { prisma } from "../db.js";
 import type { Prisma } from "@prisma/client";
 import { writeAudit } from "../lib/audit.js";
+import { writeBusinessAudit } from "../lib/business-audit.js";
 import {
   assertPasswordPolicy,
   hashPassword,
@@ -33,7 +34,8 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!auth) return;
     if (
       !userHasPermission(auth.user, "users.gerer") &&
-      !userHasPermission(auth.user, "missions.gerer")
+      !userHasPermission(auth.user, "missions.gerer") &&
+      !userHasPermission(auth.user, "audit.lire")
     ) {
       return reply.code(403).send({ error: "Permission refusée." });
     }
@@ -92,6 +94,22 @@ export async function adminRoutes(app: FastifyInstance) {
       action: "user_create",
       detail: `${email} · ${libelleRoles(roles)}`,
       ipHint: clientIp(request),
+    });
+    await writeBusinessAudit({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      userNom: auth.user.nom,
+      payload: {
+        categorie: "rbac",
+        action: "creation_utilisateur",
+        module: "rbac",
+        objetType: "utilisateur",
+        objetId: user.id,
+        objetLibelle: `${user.nom} (${email})`,
+        objetHref: "/administration/utilisateurs",
+        nouvelleValeur: libelleRoles(roles),
+        detail: "Création de compte utilisateur",
+      },
     });
 
     return reply.code(201).send({ user: toPublicUser(user) });
@@ -176,6 +194,46 @@ export async function adminRoutes(app: FastifyInstance) {
       detail: passwordHash ? `Admin reset · ${id}` : id,
       ipHint: clientIp(request),
     });
+    const rolesAvant = libelleRoles(rolesFromStored(target.role, target.roles));
+    const rolesApres = nextRoles ? libelleRoles(nextRoles) : rolesAvant;
+    if (nextRoles && rolesAvant !== rolesApres) {
+      await writeBusinessAudit({
+        tenantId: auth.tenant.id,
+        userId: auth.user.id,
+        userNom: auth.user.nom,
+        payload: {
+          categorie: "rbac",
+          action: "changement_role_utilisateur",
+          module: "rbac",
+          objetType: "utilisateur",
+          objetId: target.id,
+          objetLibelle: `${user.nom} (${target.email})`,
+          objetHref: "/administration/utilisateurs",
+          champ: "rôles",
+          ancienneValeur: rolesAvant,
+          nouvelleValeur: rolesApres,
+        },
+      });
+    }
+    if (data.actif === false && target.actif) {
+      await writeBusinessAudit({
+        tenantId: auth.tenant.id,
+        userId: auth.user.id,
+        userNom: auth.user.nom,
+        payload: {
+          categorie: "rbac",
+          action: "desactivation_utilisateur",
+          module: "rbac",
+          objetType: "utilisateur",
+          objetId: target.id,
+          objetLibelle: `${user.nom} (${target.email})`,
+          objetHref: "/administration/utilisateurs",
+          champ: "actif",
+          ancienneValeur: "actif",
+          nouvelleValeur: "désactivé",
+        },
+      });
+    }
     if (passwordHash) {
       await writeAudit({
         tenantId: auth.tenant.id,

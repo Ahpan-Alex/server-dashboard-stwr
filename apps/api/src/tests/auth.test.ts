@@ -41,6 +41,9 @@ describe("auth + tenant isolation", () => {
     await prisma.authAudit.deleteMany({
       where: { tenant: { slug: { startsWith: "stwr-test-" } } },
     });
+    await prisma.businessAudit.deleteMany({
+      where: { tenant: { slug: { startsWith: "stwr-test-" } } },
+    });
     await prisma.session.deleteMany({
       where: { tenant: { slug: { startsWith: "stwr-test-" } } },
     });

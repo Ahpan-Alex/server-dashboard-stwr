@@ -19,6 +19,7 @@ model Tenant {
   users         User[]
   sessions      Session[]
   audits        AuthAudit[]
+  businessAudits BusinessAudit[]
   businessState BusinessState?
 
   @@map("tenants")
@@ -63,6 +64,7 @@ model User {
   sessions     Session[]
   resetTokens  PasswordResetToken[]
   audits      AuthAudit[]
+  businessAudits BusinessAudit[]
 
   @@unique([tenantId, email])
   @@index([email])
@@ -103,6 +105,40 @@ model AuthAudit {
 
   @@index([tenantId, createdAt])
   @@map("auth_audit")
+}
+
+/** Journal d'audit métier — append-only, isolé par tenant, non modifiable. */
+model BusinessAudit {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  userId          String?  @map("user_id")
+  userNom         String   @map("user_nom") @db.VarChar(200)
+  categorie       String   @db.VarChar(32)
+  action          String   @db.VarChar(64)
+  module          String   @db.VarChar(32)
+  objetType       String   @map("objet_type") @db.VarChar(64)
+  objetId         String?  @map("objet_id") @db.VarChar(128)
+  objetLibelle    String?  @map("objet_libelle") @db.VarChar(255)
+  objetHref       String?  @map("objet_href") @db.VarChar(255)
+  champ           String?  @db.VarChar(128)
+  ancienneValeur  String?  @map("ancienne_valeur") @db.Text
+  nouvelleValeur  String?  @map("nouvelle_valeur") @db.Text
+  detail          String?  @db.VarChar(500)
+  siteId          String?  @map("site_id") @db.VarChar(64)
+  siteLibelle     String?  @map("site_libelle") @db.VarChar(200)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, action, createdAt])
+  @@index([tenantId, categorie, createdAt])
+  @@index([tenantId, module, createdAt])
+  @@index([tenantId, objetType, objetId])
+  @@index([tenantId, siteId, createdAt])
+  @@map("business_audit")
 }
 
 model PasswordResetToken {

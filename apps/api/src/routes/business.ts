@@ -8,6 +8,14 @@ import {
 import { prisma } from "../db.js";
 import { writeAudit } from "../lib/audit.js";
 import {
+  CreateBusinessAuditSchema,
+  extraireRetentionAudit,
+  filtreJournalAudit,
+  purgerJournalAuditExpire,
+  serialiserEntreeAudit,
+  writeBusinessAudit,
+} from "../lib/business-audit.js";
+import {
   emptyBusinessState,
   normalizeBusinessPayload,
   normaliserParametresAlertes,
@@ -331,4 +339,65 @@ export async function businessRoutes(app: FastifyInstance) {
       };
     },
   );
+
+  app.post("/business/audit", async (request, reply) => {
+    const auth = await requireAuth(request, reply);
+    if (!auth) return;
+    if (!canWriteBusiness(auth.user)) {
+      return reply.code(403).send({ error: "Permission insuffisante." });
+    }
+    const parsed = CreateBusinessAuditSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Entrée d'audit invalide." });
+    }
+    const row = await writeBusinessAudit({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      userNom: auth.user.nom,
+      payload: parsed.data,
+    });
+    return { ok: true, id: row.id };
+  });
+
+  app.get("/business/audit", async (request, reply) => {
+    const auth = await requirePermission(request, reply, "audit.lire");
+    if (!auth) return;
+    const q = request.query as Record<string, string | undefined>;
+    const state = await getOrCreateState(auth.tenant.id);
+    await purgerJournalAuditExpire(
+      auth.tenant.id,
+      extraireRetentionAudit(state.data),
+    );
+    const where = filtreJournalAudit({
+      tenantId: auth.tenant.id,
+      userId: q.userId,
+      categorie: q.categorie,
+      action: q.action,
+      module: q.module,
+      siteId: q.siteId,
+      objet: q.objet,
+      debut: q.debut,
+      fin: q.fin,
+    });
+    const page = Math.max(1, Number(q.page) || 1);
+    const exportAll = q.export === "1" || q.export === "true";
+    const pageSize = exportAll
+      ? 5000
+      : Math.min(100, Math.max(10, Number(q.pageSize) || 50));
+    const [total, rows] = await Promise.all([
+      prisma.businessAudit.count({ where }),
+      prisma.businessAudit.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: exportAll ? 0 : (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      total,
+      page,
+      pageSize,
+      items: rows.map(serialiserEntreeAudit),
+    };
+  });
 }

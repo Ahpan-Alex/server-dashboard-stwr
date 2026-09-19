@@ -120,6 +120,7 @@ async function main() {
     });
     await prisma.session.deleteMany({ where: { tenantId: other.id } });
     await prisma.authAudit.deleteMany({ where: { tenantId: other.id } });
+    await prisma.businessAudit.deleteMany({ where: { tenantId: other.id } });
     await prisma.businessState.deleteMany({ where: { tenantId: other.id } });
     await prisma.user.deleteMany({ where: { tenantId: other.id } });
     await prisma.tenant.delete({ where: { id: other.id } });
