@@ -342,7 +342,12 @@ export function emptyBusinessState() {
     journalActivites: [] as unknown[],
     comptesComptables: [] as unknown[],
     ecrituresComptables: [] as unknown[],
+    reclassements471: [] as unknown[],
     transfertsComptables: [] as unknown[],
+    journauxTresorerie: [] as unknown[],
+    operationsTresorerie: [] as unknown[],
+    emplacementsStock: [] as unknown[],
+    bonsDePreparation: [] as unknown[],
   };
 }
 
@@ -399,7 +404,12 @@ const STATE_KEYS = [
   "journalActivites",
   "comptesComptables",
   "ecrituresComptables",
+  "reclassements471",
   "transfertsComptables",
+  "journauxTresorerie",
+  "operationsTresorerie",
+  "emplacementsStock",
+  "bonsDePreparation",
   "pointDeVenteActifId",
 ] as const;
 
