@@ -20,6 +20,14 @@ import {
   normalizeBusinessPayload,
   normaliserParametresAlertes,
 } from "../lib/business-state.js";
+import {
+  EnvoiConfigBodySchema,
+  EnvoiDocumentBodySchema,
+  envoyerDocumentPdf,
+  extraireEnvoiDocuments,
+  fusionnerEnvoiDocuments,
+  statutEnvoiDocuments,
+} from "../lib/envoi-document.js";
 import { verifyPassword } from "../lib/password.js";
 import {
   clientIp,
@@ -45,6 +53,17 @@ function canWriteBusiness(user: { role: string; roles?: unknown }) {
 
 function asJson(data: unknown): Prisma.InputJsonValue {
   return data as Prisma.InputJsonValue;
+}
+
+/** Les secrets SMTP / WhatsApp ne passent pas par STATE_KEYS : les recoller après chaque normalize. */
+function conserverEnvoiDocuments(
+  raw: unknown,
+  data: Record<string, unknown>,
+) {
+  const secrets = extraireEnvoiDocuments(raw);
+  if (Object.keys(secrets).length) {
+    data.envoiDocuments = secrets;
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -108,8 +127,12 @@ export async function businessRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Payload data manquant." });
     }
 
-    const data = normalizeBusinessPayload(body.data);
     const current = await getOrCreateState(auth.tenant.id);
+    const secretsEnvoi = extraireEnvoiDocuments(current.data);
+    const data = normalizeBusinessPayload(body.data) as Record<string, unknown>;
+    if (Object.keys(secretsEnvoi).length) {
+      data.envoiDocuments = secretsEnvoi;
+    }
     const currentData = normalizeBusinessPayload(current.data);
 
     if (
@@ -184,6 +207,10 @@ export async function businessRoutes(app: FastifyInstance) {
       incoming.preferencesAffichage,
       auth.user.id,
     );
+    conserverEnvoiDocuments(
+      current.data,
+      currentData as Record<string, unknown>,
+    );
 
     const updated = await prisma.businessState.update({
       where: { tenantId: auth.tenant.id },
@@ -218,6 +245,10 @@ export async function businessRoutes(app: FastifyInstance) {
     const currentData = normalizeBusinessPayload(current.data);
     currentData.parametresAlertes = normaliserParametresAlertes(
       body.parametresAlertes,
+    );
+    conserverEnvoiDocuments(
+      current.data,
+      currentData as Record<string, unknown>,
     );
 
     const updated = await prisma.businessState.update({
@@ -258,6 +289,10 @@ export async function businessRoutes(app: FastifyInstance) {
       incoming.alertesSuivi,
       auth.user.id,
     );
+    conserverEnvoiDocuments(
+      current.data,
+      currentData as Record<string, unknown>,
+    );
 
     const updated = await prisma.businessState.update({
       where: { tenantId: auth.tenant.id },
@@ -273,6 +308,77 @@ export async function businessRoutes(app: FastifyInstance) {
       data: normalizeBusinessPayload(updated.data),
     };
   });
+  app.get("/business/envoi", async (request, reply) => {
+    const auth = await requireAuth(request, reply);
+    if (!auth) return;
+    const row = await getOrCreateState(auth.tenant.id);
+    return statutEnvoiDocuments(extraireEnvoiDocuments(row.data));
+  });
+
+  app.put("/business/envoi", async (request, reply) => {
+    const auth = await requirePermission(request, reply, "parametres.gerer");
+    if (!auth) return;
+    const parsed = EnvoiConfigBodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Paramètres d'envoi invalides." });
+    }
+    const current = await getOrCreateState(auth.tenant.id);
+    const currentData = normalizeBusinessPayload(current.data) as Record<
+      string,
+      unknown
+    >;
+    currentData.envoiDocuments = fusionnerEnvoiDocuments(
+      extraireEnvoiDocuments(current.data),
+      parsed.data,
+    );
+    const updated = await prisma.businessState.update({
+      where: { tenantId: auth.tenant.id },
+      data: {
+        data: asJson(currentData),
+        revision: { increment: 1 },
+      },
+    });
+    return statutEnvoiDocuments(extraireEnvoiDocuments(updated.data));
+  });
+
+  app.post(
+    "/business/envoi",
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: "5 minutes",
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireAuth(request, reply);
+      if (!auth) return;
+      if (
+        !canWriteBusiness(auth.user) &&
+        !userHasPermission(auth.user, "factures.lire")
+      ) {
+        return reply.code(403).send({ error: "Permission insuffisante." });
+      }
+      const parsed = EnvoiDocumentBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Payload d'envoi invalide." });
+      }
+      const row = await getOrCreateState(auth.tenant.id);
+      try {
+        const res = await envoyerDocumentPdf(
+          extraireEnvoiDocuments(row.data),
+          parsed.data,
+        );
+        if (!res.ok) return reply.code(400).send({ error: res.reason });
+        return { ok: true };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Envoi impossible.";
+        return reply.code(502).send({ error: message });
+      }
+    },
+  );
+
   app.post(
     "/business/reset",
     {
