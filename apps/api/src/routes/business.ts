@@ -151,6 +151,12 @@ export async function businessRoutes(app: FastifyInstance) {
       auth.user.id,
     );
 
+    data.filtresArticles = fusionnerPrefsAffichage(
+      currentData.filtresArticles,
+      data.filtresArticles,
+      auth.user.id,
+    );
+
     data.alertesSuivi = fusionnerPrefsAffichage(
       currentData.alertesSuivi,
       data.alertesSuivi,

@@ -216,6 +216,7 @@ export function emptyBusinessState() {
     modelesDocuments,
     preferencesModeles,
     preferencesAffichage: {},
+    filtresArticles: {},
     parametresAlertes: { ...PARAMETRES_ALERTES_DEFAUT },
     alertesSuivi: {},
     bilanInitial: {
@@ -360,6 +361,7 @@ const STATE_KEYS = [
   "modelesDocuments",
   "preferencesModeles",
   "preferencesAffichage",
+  "filtresArticles",
   "parametresAlertes",
   "alertesSuivi",
   "bilanInitial",
