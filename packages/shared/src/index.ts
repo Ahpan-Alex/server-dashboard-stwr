@@ -56,6 +56,7 @@ export const PermissionSchema = z.enum([
   "sites.vue_globale",
   "ventes.deroger_credit",
   "fabrication.deroger_bat",
+  "fabrication.modifier",
   "comptabilite.lire",
   "comptabilite.gerer",
   "missions.lire",
@@ -100,6 +101,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "sites.vue_globale",
     "ventes.deroger_credit",
     "fabrication.deroger_bat",
+    "fabrication.modifier",
     "comptabilite.lire",
     "comptabilite.gerer",
     "missions.lire",
@@ -125,6 +127,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "sites.vue_globale",
     "ventes.deroger_credit",
     "fabrication.deroger_bat",
+    "fabrication.modifier",
     "comptabilite.lire",
     "comptabilite.gerer",
     "missions.lire",
@@ -137,6 +140,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "clients.lire",
     "missions.lire",
     "missions.gerer",
+    "fabrication.modifier",
   ],
   caissier: [
     "factures.lire",
@@ -145,6 +149,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "produits.lire",
     "clients.lire",
     "commercial.lire",
+    "fabrication.modifier",
   ],
   facturier: [
     "factures.lire",
@@ -156,6 +161,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "clients.lire",
     "clients.gerer",
     "commercial.lire",
+    "fabrication.modifier",
   ],
   vendeur: [
     "factures.lire",
@@ -165,6 +171,7 @@ export const ROLE_PERMISSIONS: Record<RoleId, Permission[]> = {
     "commercial.lire",
     "commercial.gerer",
     "rentabilite.lire",
+    "fabrication.modifier",
   ],
   lecture_seule: [
     "factures.lire",
@@ -205,6 +212,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "sites.vue_globale": "Sites — vue globale (tous les stocks)",
   "ventes.deroger_credit": "Ventes — dérogation au plafond de crédit",
   "fabrication.deroger_bat": "Fabrication — dérogation BAT (démarrer sans BAT validé)",
+  "fabrication.modifier": "Fabrication — modification d'un ordre de fabrication",
   "comptabilite.lire": "Comptabilité — lecture",
   "comptabilite.gerer": "Comptabilité — plan et écritures",
   "missions.lire": "Missions d'achat — lecture",
